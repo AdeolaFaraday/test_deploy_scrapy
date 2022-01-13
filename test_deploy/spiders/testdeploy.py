@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
-import os
 import scrapy
 from scrapy.selector import Selector
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.keys import Keys
-from shutil import which
+from scrapy import FormRequest
 
 
 class TestdeploySpider(scrapy.Spider):
@@ -14,21 +10,37 @@ class TestdeploySpider(scrapy.Spider):
     start_urls = ['http://www.fzmovies.net/']
 
     def parse(self, response):
-        chrome_options = Options()
-        chrome_options.binary_location = os.environ.get("GOOGLE_CHROME_BIN")
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--no-sandbox")
-        driver = webdriver.Chrome(executable_path=os.environ.get("CHROMEDRIVER_PATH"), options=chrome_options)
-        driver.set_window_size(1920, 1080)
-        driver.get("https://www.fzmovies.net/")
+        yield FormRequest.from_response(
+            response,
+            formid="searchname",
+            formdata={
+                "searchname": "life itself",
+                "Search": "Search",
+                "searchby": "Name",
+                "category": "All",
+            },
+            callback=self.parse_film
+        )
 
-        obj = driver.switch_to.alert
+    def parse_film(self, response):
+        movies_link = Selector(text=response.body.decode(
+            "utf-8")).xpath("//div[@class='mainbox']/table/tr/td[2]/span/a//@href").get()
+        yield response.follow(url=movies_link, callback=self.parse_first_page)
 
-        # Or Dismiss the Alert using
-        if obj:
-            obj.dismiss()
+    def parse_first_page(self, response):
+        next_link = Selector(text=response.body.decode(
+            "utf-8")).xpath("//a[@id='downloadoptionslink2']//@href").get()
+        print(next_link, 'next link hereeeeeeeee')
+        yield response.follow(url=next_link, callback=self.parse_second_page)
 
+    def parse_second_page(self, response):
+        next_link = Selector(text=response.body.decode(
+            "utf-8")).xpath("//a[@id='downloadlink']//@href").get()
+        yield response.follow(url=next_link, callback=self.parse_third_page)
+
+    def parse_third_page(self, response):
+        download_link = Selector(text=response.body.decode(
+            "utf-8")).xpath("//a[@id='dlink0']//@href").get()
         yield {
-            'message': 'obj.text'
+            'download_link': download_link
         }
