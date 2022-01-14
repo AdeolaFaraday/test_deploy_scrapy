@@ -14,7 +14,7 @@ class TestdeploySpider(scrapy.Spider):
             response,
             formid="searchname",
             formdata={
-                "searchname": "life itself",
+                "searchname": "clouds",
                 "Search": "Search",
                 "searchby": "Name",
                 "category": "All",
